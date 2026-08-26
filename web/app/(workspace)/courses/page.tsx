@@ -175,7 +175,7 @@ function TutorPanel({ course, item, onClose, onSession }: { course: Course; item
     clientRef.current = client;
     return client;
   };
-  const sendWithRetry = (client: ReturnType<typeof ensureClient>, payload: Record<string, unknown>, attempt = 0) => {
+  const sendWithRetry = (client: ReturnType<typeof ensureClient>, payload: any, attempt = 0) => {
     if (client.connected) { client.send(payload); return; }
     if (attempt >= 10) {
       setBusy(false);
