@@ -175,17 +175,26 @@ function TutorPanel({ course, item, onClose, onSession }: { course: Course; item
     clientRef.current = client;
     return client;
   };
+  const sendWithRetry = (client: ReturnType<typeof ensureClient>, payload: Record<string, unknown>, attempt = 0) => {
+    if (client.connected) { client.send(payload); return; }
+    if (attempt >= 10) {
+      setBusy(false);
+      setMessages((previous) => [...previous, { role: "assistant", content: "Connection failed. Please try again." }]);
+      return;
+    }
+    setTimeout(() => sendWithRetry(client, payload, attempt + 1), 250);
+  };
   const send = () => {
     const content = input.trim();
     if (!content || busy) return;
     setMessages((previous) => [...previous, { role: "user", content }]);
     setInput(""); setBusy(true);
     const client = ensureClient(); client.connect();
-    window.setTimeout(() => client.send({
+    const payload = {
       type: "start_turn", content, session_id: item.chat_session_id || undefined,
       capability: "mastery_path", knowledge_bases: course.knowledge_bases, language,
       config: { mastery_path_id: course.id, course_context: JSON.stringify({ course: course.title, class_title: item.title, class_summary: item.summary, objectives: item.learning_objectives, tutorials: item.tutorials.map(({ title, status }) => ({ title, status })), assignments: item.assignments.map(({ title, prompt, deliverable, rubric, status, learner_submission }) => ({ title, prompt, deliverable, rubric, status, learner_submission })), project: item.project }) },
-    }), 200);
+    }; sendWithRetry(client, payload);
   };
   const submitReply = (payload: { text?: string; answers?: Array<{ questionId: string; text: string }> }) => {
     if (!turnRef.current) return;
