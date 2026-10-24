@@ -16,8 +16,8 @@ from deeptutor.learning.models import (
     TopicSource,
     TopicSourceKind,
 )
+from deeptutor.learning.route_json import RouteJsonError, complete_route_json
 from deeptutor.services.llm import complete
-from deeptutor.utils.json_parser import parse_json_response
 
 logger = logging.getLogger(__name__)
 
@@ -554,10 +554,20 @@ async def generate_topic_draft(
         module_limit=module_limit,
         must_cover=[str(item).strip() for item in (must_cover or []) if str(item or "").strip()],
     )
-    response = await complete(prompt=prompt, system_prompt=system_prompt)
-    data = parse_json_response(response, fallback=None)
-    if not isinstance(data, dict):
-        raise TopicGenerationError("The model returned invalid route JSON")
+    # A route is a long structured reply, which is exactly where a reasoning
+    # model's hidden reasoning tends to starve the visible answer, and where
+    # markdown-ish prose inside the JSON breaks a strict parse. Retry on the
+    # dedicated route model rather than failing the learner's request outright.
+    try:
+        data = await complete_route_json(
+            system_prompt=system_prompt,
+            prompt=prompt,
+            label="route",
+            required_key="modules",
+            first_attempt=complete,
+        )
+    except RouteJsonError as exc:
+        raise TopicGenerationError(str(exc)) from exc
     raw_modules = data.get("modules")
     if not isinstance(raw_modules, list):
         raise TopicGenerationError("The generated route has no module list")
