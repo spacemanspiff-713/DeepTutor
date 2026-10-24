@@ -66,7 +66,7 @@ export const PRIMARY_NAV: NavEntry[] = [
     // tutorials / assignments / projects, model-enriched artifacts). Upstream's
     // "Personalized Learning" hub is the first-party learning surface; this
     // keeps the fork's richer course containers reachable alongside it.
-    href: '/courses',
+    href: '/interactive-courses',
     label: 'Courses',
     icon: Library,
     tooltipKey: 'Courses tooltip',
