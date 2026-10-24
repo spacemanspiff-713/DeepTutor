@@ -54,7 +54,9 @@ export default function CourseworkPanel({ courseId }: { courseId: string }) {
       compiled: classes.filter(item => item.content_status === 'ready').length,
       tutorials: classes.reduce((sum, item) => sum + item.tutorials.length, 0),
       assignments: classes.reduce((sum, item) => sum + item.assignments.length, 0),
-      projects: classes.filter(item => item.project.title).length,
+      projects: classes.filter(
+        item => item.content_status === 'ready' && item.project.title
+      ).length,
     }
   }, [detail])
 
