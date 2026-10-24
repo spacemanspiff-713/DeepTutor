@@ -1,4 +1,5 @@
 """LLM agents for robust course planning and per-class content compilation."""
+
 from __future__ import annotations
 
 import json
@@ -8,12 +9,19 @@ import re
 from typing import Any
 
 from deeptutor.book.blocks._llm_writer import llm_json
-from deeptutor.services.llm import clean_thinking_tags, complete as llm_complete, get_llm_config, get_token_limit_kwargs
+from deeptutor.services.llm import clean_thinking_tags, get_llm_config, get_token_limit_kwargs
+from deeptutor.services.llm import complete as llm_complete
 from deeptutor.services.prompt.language import append_language_directive
 from deeptutor.utils.json_parser import parse_json_response
 
-from .models import Assignment, ClassProject, CourseClassPlan, CourseOutline, CourseProposal, Tutorial
-
+from .models import (
+    Assignment,
+    ClassProject,
+    CourseClassPlan,
+    CourseOutline,
+    CourseProposal,
+    Tutorial,
+)
 
 logger = logging.getLogger(__name__)
 COURSE_COMPILER_MODEL = os.getenv("DEEPTUTOR_COURSE_COMPILER_MODEL", "x-ai/grok-4.5")
@@ -23,7 +31,7 @@ COURSE_COMPILER_REASONING_EFFORT = os.getenv("DEEPTUTOR_COURSE_COMPILER_REASONIN
 
 def _escape_invalid_json_backslashes(value: str) -> str:
     """Repair markdown-y JSON strings that contain invalid escapes like \\*."""
-    return re.sub(r'\\(?!["\\/bfnrtu])', r'\\\\', value)
+    return re.sub(r'\\(?!["\\/bfnrtu])', r"\\\\", value)
 
 
 class CourseGenerationError(ValueError):
@@ -90,7 +98,9 @@ class CourseIdeationAgent(_CourseAgent):
         )
         title = _clip(data.get("title"), 120)
         if not title:
-            raise CourseGenerationError("Course proposal generation returned no usable title. Please retry.")
+            raise CourseGenerationError(
+                "Course proposal generation returned no usable title. Please retry."
+            )
         try:
             count = max(3, min(12, int(data.get("estimated_classes", 4))))
         except (TypeError, ValueError):
@@ -113,7 +123,9 @@ class CourseIdeationAgent(_CourseAgent):
 
 
 class CoursePlannerAgent(_CourseAgent):
-    async def process(self, course_id: str, proposal: CourseProposal, research_brief: str, resource_ids: list[str]) -> CourseOutline:
+    async def process(
+        self, course_id: str, proposal: CourseProposal, research_brief: str, resource_ids: list[str]
+    ) -> CourseOutline:
         expected_count = max(3, min(12, proposal.estimated_classes))
         data = await self.json(
             "Create a rigorous, non-repetitive interactive class plan for this approved course. "
@@ -125,7 +137,9 @@ class CoursePlannerAgent(_CourseAgent):
         )
         raw = data.get("classes") if isinstance(data.get("classes"), list) else []
         if max(3, expected_count // 2) <= len(raw) < expected_count:
-            repaired = await self._repair_missing_classes(proposal, research_brief, resource_ids, raw, expected_count - len(raw))
+            repaired = await self._repair_missing_classes(
+                proposal, research_brief, resource_ids, raw, expected_count - len(raw)
+            )
             raw = raw + repaired
         if len(raw) != expected_count:
             raise CourseGenerationError(
@@ -136,7 +150,9 @@ class CoursePlannerAgent(_CourseAgent):
         seen_titles: set[str] = set()
         for index, item in enumerate(raw):
             if not isinstance(item, dict):
-                raise CourseGenerationError(f"Class {index + 1} is not a structured plan. Please retry.")
+                raise CourseGenerationError(
+                    f"Class {index + 1} is not a structured plan. Please retry."
+                )
             title = _clip(item.get("title"), 160)
             title_key = " ".join(title.lower().split())
             summary = _clip(item.get("summary"), 600)
@@ -162,25 +178,42 @@ class CoursePlannerAgent(_CourseAgent):
                 if not isinstance(point, dict) or not str(point.get("name") or "").strip():
                     continue
                 kind = str(point.get("type") or "concept").lower()
-                points.append({"name": _clip(point.get("name"), 160), "type": kind if kind in {"memory", "concept", "procedure", "design"} else "concept"})
-            classes.append(CourseClassPlan(
-                title=title,
-                summary=summary,
-                learning_objectives=objectives,
-                knowledge_points=points[:8],
-                prerequisites=_strings(item.get("prerequisites"), limit=4, item_limit=160),
-                tutorial_titles=tutorials,
-                assignment_titles=assignments,
-                project_title=project_title,
-                resource_ids=[str(value) for value in item.get("resource_ids", []) if str(value) in resource_ids][:6],
-                order=index,
-            ))
+                points.append(
+                    {
+                        "name": _clip(point.get("name"), 160),
+                        "type": kind
+                        if kind in {"memory", "concept", "procedure", "design"}
+                        else "concept",
+                    }
+                )
+            classes.append(
+                CourseClassPlan(
+                    title=title,
+                    summary=summary,
+                    learning_objectives=objectives,
+                    knowledge_points=points[:8],
+                    prerequisites=_strings(item.get("prerequisites"), limit=4, item_limit=160),
+                    tutorial_titles=tutorials,
+                    assignment_titles=assignments,
+                    project_title=project_title,
+                    resource_ids=[
+                        str(value)
+                        for value in item.get("resource_ids", [])
+                        if str(value) in resource_ids
+                    ][:6],
+                    order=index,
+                )
+            )
         by_title = {item.title.lower(): item.id for item in classes}
         for item in classes:
-            item.prerequisites = [by_title[value.lower()] for value in item.prerequisites if value.lower() in by_title]
+            item.prerequisites = [
+                by_title[value.lower()] for value in item.prerequisites if value.lower() in by_title
+            ]
         objectives = _strings(data.get("course_objectives"), limit=10, item_limit=220)
         if len(objectives) < 2:
-            raise CourseGenerationError("Course planner returned no usable course objectives. Please retry the plan.")
+            raise CourseGenerationError(
+                "Course planner returned no usable course objectives. Please retry the plan."
+            )
         return CourseOutline(course_id=course_id, classes=classes, course_objectives=objectives)
 
     async def _repair_missing_classes(
@@ -191,7 +224,11 @@ class CoursePlannerAgent(_CourseAgent):
         existing_classes: list[Any],
         missing_count: int,
     ) -> list[dict[str, Any]]:
-        existing_titles = [str(item.get("title") or "").strip() for item in existing_classes if isinstance(item, dict)]
+        existing_titles = [
+            str(item.get("title") or "").strip()
+            for item in existing_classes
+            if isinstance(item, dict)
+        ]
         data = await self.json(
             "Complete a nearly finished interactive course outline. "
             f"Return exactly {missing_count} NEW class entries, not the whole course. "
@@ -239,8 +276,13 @@ class CourseClassCompilerAgent(_CourseAgent):
         artifact at a time with low reasoning effort; each valid artifact
         replaces its baseline independently.
         """
-        tutorials = [self._structured_tutorial(title, plan, index) for index, title in enumerate(plan.tutorial_titles)]
-        assignments = [self._structured_assignment(title, proposal, plan) for title in plan.assignment_titles]
+        tutorials = [
+            self._structured_tutorial(title, plan, index)
+            for index, title in enumerate(plan.tutorial_titles)
+        ]
+        assignments = [
+            self._structured_assignment(title, proposal, plan) for title in plan.assignment_titles
+        ]
         project = self._structured_project(proposal, plan)
         context = self._artifact_context(proposal, plan, resource_evidence)
 
@@ -257,7 +299,9 @@ class CourseClassCompilerAgent(_CourseAgent):
             project = enriched_project
         return tutorials, assignments, project
 
-    async def _compiler_json(self, system: str, prompt: str, *, expected_key: str, max_tokens: int) -> dict[str, Any]:
+    async def _compiler_json(
+        self, system: str, prompt: str, *, expected_key: str, max_tokens: int
+    ) -> dict[str, Any]:
         config = get_llm_config()
         binding = COURSE_COMPILER_BINDING
         model = COURSE_COMPILER_MODEL
@@ -328,9 +372,15 @@ class CourseClassCompilerAgent(_CourseAgent):
         return self._project(data, title)
 
     @staticmethod
-    def _artifact_context(proposal: CourseProposal, plan: CourseClassPlan, resource_evidence: str) -> str:
+    def _artifact_context(
+        proposal: CourseProposal, plan: CourseClassPlan, resource_evidence: str
+    ) -> str:
         objectives = "; ".join(plan.learning_objectives[:4]) or "Demonstrate the class outcome"
-        points = ", ".join(str(point.get("name") or "") for point in plan.knowledge_points[:5] if isinstance(point, dict))
+        points = ", ".join(
+            str(point.get("name") or "")
+            for point in plan.knowledge_points[:5]
+            if isinstance(point, dict)
+        )
         excerpt = _clip(resource_evidence, 1200)
         return (
             f"Course: {proposal.title}\n"
@@ -348,7 +398,14 @@ class CourseClassCompilerAgent(_CourseAgent):
         tutorials: list[Tutorial] = []
         remaining = [item for item in raw_items if isinstance(item, dict)]
         for requested_title in requested_titles:
-            match = next((index for index, item in enumerate(remaining) if _clip(item.get("title"), 160).casefold() == requested_title.casefold()), 0)
+            match = next(
+                (
+                    index
+                    for index, item in enumerate(remaining)
+                    if _clip(item.get("title"), 160).casefold() == requested_title.casefold()
+                ),
+                0,
+            )
             if not remaining:
                 break
             raw = remaining.pop(match)
@@ -369,7 +426,14 @@ class CourseClassCompilerAgent(_CourseAgent):
         assignments: list[Assignment] = []
         remaining = [item for item in raw_items if isinstance(item, dict)]
         for requested_title in requested_titles:
-            match = next((index for index, item in enumerate(remaining) if _clip(item.get("title"), 160).casefold() == requested_title.casefold()), 0)
+            match = next(
+                (
+                    index
+                    for index, item in enumerate(remaining)
+                    if _clip(item.get("title"), 160).casefold() == requested_title.casefold()
+                ),
+                0,
+            )
             if not remaining:
                 break
             raw = remaining.pop(match)
@@ -379,7 +443,9 @@ class CourseClassCompilerAgent(_CourseAgent):
             rubric = _strings(raw.get("rubric"), limit=5, item_limit=350)
             if not title or len(prompt) < 80 or len(deliverable) < 30 or len(rubric) < 3:
                 continue
-            assignments.append(Assignment(title=title, prompt=prompt, deliverable=deliverable, rubric=rubric))
+            assignments.append(
+                Assignment(title=title, prompt=prompt, deliverable=deliverable, rubric=rubric)
+            )
         return assignments
 
     @staticmethod
@@ -391,7 +457,11 @@ class CourseClassCompilerAgent(_CourseAgent):
             milestones=_strings(raw.get("milestones"), limit=6, item_limit=350),
             success_criteria=_strings(raw.get("success_criteria"), limit=6, item_limit=350),
         )
-        if len(project.brief) < 80 or len(project.milestones) < 3 or len(project.success_criteria) < 3:
+        if (
+            len(project.brief) < 80
+            or len(project.milestones) < 3
+            or len(project.success_criteria) < 3
+        ):
             return None
         return project
 
@@ -404,10 +474,13 @@ class CourseClassCompilerAgent(_CourseAgent):
             f"**Define success.** Restate the target in your own words: _{primary}_. Write down the observable result that would prove it.",
             f"**Prepare a small working slice.** Create the smallest example, screen, data set, or exercise that lets you practice _{primary}_ without adding unrelated scope.",
             f"**Implement deliberately.** Work through **{title}** and narrate the decision behind each important change. Use the linked class resources as reference material, not as instructions to copy blindly.",
-            f"**Verify the behavior.** Test the happy path and one realistic failure or edge case. Capture the evidence you would show a reviewer.",
+            "**Verify the behavior.** Test the happy path and one realistic failure or edge case. Capture the evidence you would show a reviewer.",
             f"**Connect the ideas.** Explain how the result also supports _{secondary}_, then record one trade-off or question for the tutor.",
         ]
-        checks = "\n".join(f"- Can you explain how your work demonstrates **{objective}**?" for objective in objectives[:3])
+        checks = "\n".join(
+            f"- Can you explain how your work demonstrates **{objective}**?"
+            for objective in objectives[:3]
+        )
         content = (
             f"# {title}\n\n"
             f"## Outcome\n{plan.summary}\n\n"
@@ -424,7 +497,9 @@ class CourseClassCompilerAgent(_CourseAgent):
         return Tutorial(title=title, content=content, estimated_minutes=max(20, 25 + index * 5))
 
     @staticmethod
-    def _structured_assignment(title: str, proposal: CourseProposal, plan: CourseClassPlan) -> Assignment:
+    def _structured_assignment(
+        title: str, proposal: CourseProposal, plan: CourseClassPlan
+    ) -> Assignment:
         objectives = plan.learning_objectives or ["Demonstrate the class outcome"]
         objective_list = "\n".join(f"- {objective}" for objective in objectives)
         prompt = (
@@ -451,17 +526,20 @@ class CourseClassCompilerAgent(_CourseAgent):
         objectives = plan.learning_objectives or ["Demonstrate the class outcome"]
         milestones = [
             f"Define the vertical slice: identify the smallest project behavior that demonstrates {objectives[0]}.",
-            f"Build the slice: implement or document the behavior with the relevant tools and class resources.",
+            "Build the slice: implement or document the behavior with the relevant tools and class resources.",
             "Verify it: exercise the intended path plus one edge case, then preserve the evidence.",
             "Reflect and connect: explain how this increment advances the capstone and what should be improved next.",
         ]
         criteria = [
-            f"The project increment demonstrably supports: {objective}" for objective in objectives[:3]
+            f"The project increment demonstrably supports: {objective}"
+            for objective in objectives[:3]
         ]
-        criteria.extend([
-            "The result is reproducible or inspectable by another learner",
-            "Verification evidence and a meaningful trade-off are recorded",
-        ])
+        criteria.extend(
+            [
+                "The result is reproducible or inspectable by another learner",
+                "Verification evidence and a meaningful trade-off are recorded",
+            ]
+        )
         return ClassProject(
             title=plan.project_title,
             brief=(

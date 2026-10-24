@@ -1,4 +1,5 @@
 """Course lifecycle: research -> validated outline -> compiled class workspaces."""
+
 from __future__ import annotations
 
 import asyncio
@@ -41,14 +42,23 @@ class CourseEngine:
 
     def list_courses(self) -> list[Course]:
         values = [self.storage.load_course(course_id) for course_id in self.storage.list_ids()]
-        return sorted((value for value in values if value), key=lambda value: value.updated_at, reverse=True)
+        return sorted(
+            (value for value in values if value), key=lambda value: value.updated_at, reverse=True
+        )
 
-    def detail(self, course_id: str) -> tuple[Course, CourseOutline | None, list[CourseClass], CourseProgress] | None:
+    def detail(
+        self, course_id: str
+    ) -> tuple[Course, CourseOutline | None, list[CourseClass], CourseProgress] | None:
         course = self.storage.load_course(course_id)
         if not course:
             return None
         progress = self.storage.load_progress(course_id) or CourseProgress(course_id=course_id)
-        return course, self.storage.load_outline(course_id), self.storage.list_classes(course_id), progress
+        return (
+            course,
+            self.storage.load_outline(course_id),
+            self.storage.list_classes(course_id),
+            progress,
+        )
 
     async def create_course(self, **raw: Any) -> tuple[Course, CourseProposal, CourseInputs]:
         intent = str(raw.get("user_intent") or "").strip()
@@ -67,7 +77,9 @@ class CourseEngine:
         )
         researched = await self._research_links(links)
         evidence = self._resource_evidence(researched)
-        research_brief = await CourseResearchAgent(language=source_snapshot.language).process(intent, evidence)
+        research_brief = await CourseResearchAgent(language=source_snapshot.language).process(
+            intent, evidence
+        )
         proposal = await CourseIdeationAgent(language=source_snapshot.language).process(
             intent, ideation_context.render(), research_brief
         )
@@ -97,7 +109,9 @@ class CourseEngine:
         self.storage.append_log(course.id, "course created; resources researched before proposal")
         return course, proposal, inputs
 
-    async def confirm_proposal(self, course_id: str, proposal: CourseProposal | None = None) -> tuple[Course, CourseOutline]:
+    async def confirm_proposal(
+        self, course_id: str, proposal: CourseProposal | None = None
+    ) -> tuple[Course, CourseOutline]:
         course = self.storage.load_course(course_id)
         inputs = self.storage.load_inputs(course_id)
         if not course or not inputs:
@@ -111,7 +125,10 @@ class CourseEngine:
             raise ValueError("Course proposal is missing")
         try:
             outline = await CoursePlannerAgent(language=course.language).process(
-                course.id, approved, inputs.research_brief, [item.id for item in course.resource_links]
+                course.id,
+                approved,
+                inputs.research_brief,
+                [item.id for item in course.resource_links],
             )
         except Exception as exc:
             # Crucially, do not turn an LLM failure into generic classes.
@@ -128,7 +145,9 @@ class CourseEngine:
         self.storage.append_log(course.id, "proposal confirmed; validated class outline generated")
         return course, outline
 
-    async def confirm_outline(self, course_id: str, outline: CourseOutline | None = None) -> list[CourseClass]:
+    async def confirm_outline(
+        self, course_id: str, outline: CourseOutline | None = None
+    ) -> list[CourseClass]:
         """Create plan-specific class records and compile the first available class.
 
         Later classes keep their approved unique plans but are compiled only when
@@ -153,7 +172,9 @@ class CourseEngine:
             # marked ready. No fabricated tutorial/assignment/project content.
             first = classes[0]
             first.content_status = "generating"
-            tutorials, assignments, project = await self._compile_plan(course, inputs, final.classes[0])
+            tutorials, assignments, project = await self._compile_plan(
+                course, inputs, final.classes[0]
+            )
             first.tutorials = tutorials
             first.assignments = assignments
             first.project = project
@@ -169,7 +190,10 @@ class CourseEngine:
             course.class_count = len(classes)
             course.updated_at = time.time()
             self.storage.save_course(course)
-            self.storage.append_log(course_id, f"outline confirmed; {len(classes)} distinct class plans created; first class compiled")
+            self.storage.append_log(
+                course_id,
+                f"outline confirmed; {len(classes)} distinct class plans created; first class compiled",
+            )
             return classes
 
     async def compile_class(self, course_id: str, class_id: str) -> CourseClass:
@@ -209,7 +233,9 @@ class CourseEngine:
             self.storage.append_log(course_id, f"class compiled: {item.title}")
             return item
 
-    async def regenerate_outline(self, course_id: str, proposal: CourseProposal | None = None) -> tuple[Course, CourseOutline]:
+    async def regenerate_outline(
+        self, course_id: str, proposal: CourseProposal | None = None
+    ) -> tuple[Course, CourseOutline]:
         """Discard invalid/generated classes while preserving proposal, sources, and inputs."""
         async with self._lock:
             course = self.storage.load_course(course_id)
@@ -223,11 +249,15 @@ class CourseEngine:
             course.updated_at = time.time()
             self.storage.save_course(course)
             self.storage.save_progress(CourseProgress(course_id=course_id))
-            self.storage.append_log(course_id, "course reset for outline regeneration; source research preserved")
+            self.storage.append_log(
+                course_id, "course reset for outline regeneration; source research preserved"
+            )
         return await self.confirm_proposal(course_id, proposal)
 
     @staticmethod
-    def _class_from_plan(course_id: str, plan: CourseClassPlan, index: int, prereq_ids: list[str]) -> CourseClass:
+    def _class_from_plan(
+        course_id: str, plan: CourseClassPlan, index: int, prereq_ids: list[str]
+    ) -> CourseClass:
         return CourseClass(
             id=plan.id,
             course_id=course_id,
@@ -245,22 +275,38 @@ class CourseEngine:
             project=ClassProject(title=plan.project_title),
         )
 
-    async def _compile_plan(self, course: Course, inputs: CourseInputs, plan: CourseClassPlan) -> tuple[list[Tutorial], list[Assignment], ClassProject]:
-        evidence = self._resource_evidence([link for link in course.resource_links if link.id in plan.resource_ids])
-        return await CourseClassCompilerAgent(language=course.language).process(course.proposal or CourseProposal(), plan, evidence or inputs.research_brief)
+    async def _compile_plan(
+        self, course: Course, inputs: CourseInputs, plan: CourseClassPlan
+    ) -> tuple[list[Tutorial], list[Assignment], ClassProject]:
+        evidence = self._resource_evidence(
+            [link for link in course.resource_links if link.id in plan.resource_ids]
+        )
+        return await CourseClassCompilerAgent(language=course.language).process(
+            course.proposal or CourseProposal(), plan, evidence or inputs.research_brief
+        )
 
     def update_class(self, course_id: str, class_id: str, patch: dict[str, Any]) -> CourseClass:
         item = self.storage.load_class(course_id, class_id)
         if not item:
             raise ValueError("Class not found")
-        allowed = {"notes", "book_ids", "chat_session_id", "status", "tutorials", "assignments", "project"}
+        allowed = {
+            "notes",
+            "book_ids",
+            "chat_session_id",
+            "status",
+            "tutorials",
+            "assignments",
+            "project",
+        }
         values = {key: value for key, value in patch.items() if key in allowed}
         if "status" in values:
             values["status"] = ClassStatus(values["status"])
         if "tutorials" in values:
             values["tutorials"] = [Tutorial.model_validate(value) for value in values["tutorials"]]
         if "assignments" in values:
-            values["assignments"] = [Assignment.model_validate(value) for value in values["assignments"]]
+            values["assignments"] = [
+                Assignment.model_validate(value) for value in values["assignments"]
+            ]
         if "project" in values:
             values["project"] = ClassProject.model_validate(values["project"])
         for key, value in values.items():
@@ -303,6 +349,7 @@ class CourseEngine:
                 link.status = "unavailable"
                 link.error = outcome.error
             return link
+
         return await asyncio.gather(*(fetch(link) for link in links)) if links else []
 
     @staticmethod
@@ -310,21 +357,39 @@ class CourseEngine:
         blocks = []
         for link in links:
             if link.status == "researched":
-                blocks.append(f"[Resource {link.id}] {link.title or link.fetched_title or link.url}\nURL: {link.final_url or link.url}\n{link.excerpt}")
+                blocks.append(
+                    f"[Resource {link.id}] {link.title or link.fetched_title or link.url}\nURL: {link.final_url or link.url}\n{link.excerpt}"
+                )
         return "\n\n---\n\n".join(blocks)
 
     def _sync_learning_path(self, course_id: str, classes: list[CourseClass]) -> None:
         modules: list[LearningModule] = []
         for item in classes:
             points = []
-            for index, raw in enumerate(item.knowledge_points or [{"name": objective, "type": "concept"} for objective in item.learning_objectives]):
+            for index, raw in enumerate(
+                item.knowledge_points
+                or [
+                    {"name": objective, "type": "concept"} for objective in item.learning_objectives
+                ]
+            ):
                 try:
                     kind = KnowledgeType(str(raw.get("type") or "concept").lower())
                 except ValueError:
                     kind = KnowledgeType.CONCEPT
-                points.append(KnowledgePoint(id=f"{course_id}_{item.id}_kp{index}", name=str(raw.get("name") or f"Objective {index + 1}"), type=kind, module_id=item.id))
+                points.append(
+                    KnowledgePoint(
+                        id=f"{course_id}_{item.id}_kp{index}",
+                        name=str(raw.get("name") or f"Objective {index + 1}"),
+                        type=kind,
+                        module_id=item.id,
+                    )
+                )
             if points:
-                modules.append(LearningModule(id=item.id, name=item.title, order=item.order, knowledge_points=points))
+                modules.append(
+                    LearningModule(
+                        id=item.id, name=item.title, order=item.order, knowledge_points=points
+                    )
+                )
         if modules:
             service = LearningService()
             progress = service.get_or_create(course_id)
@@ -338,11 +403,20 @@ class CourseEngine:
             progress.completed_class_ids.append(class_id)
         classes = self.storage.list_classes(course_id)
         for item in classes:
-            if item.status == ClassStatus.LOCKED and all(pid in progress.completed_class_ids for pid in item.prerequisite_ids):
+            if item.status == ClassStatus.LOCKED and all(
+                pid in progress.completed_class_ids for pid in item.prerequisite_ids
+            ):
                 item.status = ClassStatus.NEXT
                 item.updated_at = time.time()
                 self.storage.save_class(item)
-        next_item = next((item for item in classes if item.status in {ClassStatus.NEXT, ClassStatus.IN_PROGRESS}), None)
+        next_item = next(
+            (
+                item
+                for item in classes
+                if item.status in {ClassStatus.NEXT, ClassStatus.IN_PROGRESS}
+            ),
+            None,
+        )
         progress.current_class_id = next_item.id if next_item else ""
         progress.updated_at = time.time()
         self.storage.save_progress(progress)

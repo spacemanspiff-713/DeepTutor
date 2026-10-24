@@ -1,4 +1,5 @@
 """REST API for interactive Courses."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -42,7 +43,9 @@ async def health() -> dict[str, str]:
 
 @router.get("/courses")
 async def list_courses() -> dict[str, Any]:
-    return {"courses": [item.model_dump(mode="json") for item in get_course_engine().list_courses()]}
+    return {
+        "courses": [item.model_dump(mode="json") for item in get_course_engine().list_courses()]
+    }
 
 
 @router.get("/courses/{course_id}")
@@ -76,7 +79,9 @@ async def create_course(body: CreateCourseRequest) -> dict[str, Any]:
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Course research/proposal failed: {exc}") from exc
+        raise HTTPException(
+            status_code=500, detail=f"Course research/proposal failed: {exc}"
+        ) from exc
     return {
         "course": course.model_dump(mode="json"),
         "proposal": proposal.model_dump(mode="json"),
@@ -155,47 +160,75 @@ async def course_websocket(ws: WebSocket) -> None:
                     course, proposal, inputs = await get_course_engine().create_course(
                         **body.model_dump()
                     )
-                    await ws.send_json({
-                        "type": "create_result",
-                        "course": course.model_dump(mode="json"),
-                        "proposal": proposal.model_dump(mode="json"),
-                        "research_brief": inputs.research_brief,
-                        "resource_links": [item.model_dump(mode="json") for item in inputs.resource_links],
-                    })
+                    await ws.send_json(
+                        {
+                            "type": "create_result",
+                            "course": course.model_dump(mode="json"),
+                            "proposal": proposal.model_dump(mode="json"),
+                            "research_brief": inputs.research_brief,
+                            "resource_links": [
+                                item.model_dump(mode="json") for item in inputs.resource_links
+                            ],
+                        }
+                    )
                 elif action == "confirm_proposal":
-                    proposal = CourseProposal.model_validate(data["proposal"]) if data.get("proposal") else None
+                    proposal = (
+                        CourseProposal.model_validate(data["proposal"])
+                        if data.get("proposal")
+                        else None
+                    )
                     course, outline = await get_course_engine().confirm_proposal(
                         str(data.get("course_id") or ""), proposal
                     )
-                    await ws.send_json({
-                        "type": "confirm_proposal_result",
-                        "course": course.model_dump(mode="json"),
-                        "outline": outline.model_dump(mode="json"),
-                    })
+                    await ws.send_json(
+                        {
+                            "type": "confirm_proposal_result",
+                            "course": course.model_dump(mode="json"),
+                            "outline": outline.model_dump(mode="json"),
+                        }
+                    )
                 elif action == "confirm_outline":
-                    outline = CourseOutline.model_validate(data["outline"]) if data.get("outline") else None
-                    classes = await get_course_engine().confirm_outline(str(data.get("course_id") or ""), outline)
-                    await ws.send_json({
-                        "type": "confirm_outline_result",
-                        "classes": [item.model_dump(mode="json") for item in classes],
-                    })
+                    outline = (
+                        CourseOutline.model_validate(data["outline"])
+                        if data.get("outline")
+                        else None
+                    )
+                    classes = await get_course_engine().confirm_outline(
+                        str(data.get("course_id") or ""), outline
+                    )
+                    await ws.send_json(
+                        {
+                            "type": "confirm_outline_result",
+                            "classes": [item.model_dump(mode="json") for item in classes],
+                        }
+                    )
                 elif action == "compile_class":
                     item = await get_course_engine().compile_class(
                         str(data.get("course_id") or ""), str(data.get("class_id") or "")
                     )
-                    await ws.send_json({"type": "compile_class_result", "class": item.model_dump(mode="json")})
+                    await ws.send_json(
+                        {"type": "compile_class_result", "class": item.model_dump(mode="json")}
+                    )
                 elif action == "regenerate_outline":
-                    proposal = CourseProposal.model_validate(data["proposal"]) if data.get("proposal") else None
+                    proposal = (
+                        CourseProposal.model_validate(data["proposal"])
+                        if data.get("proposal")
+                        else None
+                    )
                     course, outline = await get_course_engine().regenerate_outline(
                         str(data.get("course_id") or ""), proposal
                     )
-                    await ws.send_json({
-                        "type": "regenerate_outline_result",
-                        "course": course.model_dump(mode="json"),
-                        "outline": outline.model_dump(mode="json"),
-                    })
+                    await ws.send_json(
+                        {
+                            "type": "regenerate_outline_result",
+                            "course": course.model_dump(mode="json"),
+                            "outline": outline.model_dump(mode="json"),
+                        }
+                    )
                 else:
-                    await ws.send_json({"type": "error", "content": f"Unknown message type: {action}"})
+                    await ws.send_json(
+                        {"type": "error", "content": f"Unknown message type: {action}"}
+                    )
             except Exception as exc:
                 await ws.send_json({"type": "error", "content": str(exc)})
     finally:

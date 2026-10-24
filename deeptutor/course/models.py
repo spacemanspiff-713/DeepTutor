@@ -1,4 +1,5 @@
 """Persistent models for the interactive Courses workspace."""
+
 from __future__ import annotations
 
 from enum import Enum

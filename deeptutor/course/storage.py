@@ -1,4 +1,5 @@
 """Atomic, per-course JSON persistence under data/user/workspace/course/."""
+
 from __future__ import annotations
 
 import asyncio
@@ -51,7 +52,9 @@ class CourseStorage:
     def list_ids(self) -> list[str]:
         if not self.root.exists():
             return []
-        return [p.name[7:] for p in self.root.iterdir() if p.is_dir() and p.name.startswith("course_")]
+        return [
+            p.name[7:] for p in self.root.iterdir() if p.is_dir() and p.name.startswith("course_")
+        ]
 
     def save_course(self, value: Course) -> None:
         self.ensure(value.id)
@@ -102,7 +105,9 @@ class CourseStorage:
         if not directory.exists():
             return []
         items = [_read(path, CourseClass) for path in directory.glob("*.json")]
-        return sorted((item for item in items if item), key=lambda item: (item.order, item.created_at))
+        return sorted(
+            (item for item in items if item), key=lambda item: (item.order, item.created_at)
+        )
 
     def append_log(self, course_id: str, message: str) -> None:
         path = self._path(course_id, "log.md")
