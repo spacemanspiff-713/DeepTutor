@@ -71,7 +71,7 @@ export const PRIMARY_NAV: NavEntry[] = [
     icon: Library,
     tooltipKey: 'Courses tooltip',
     requires: 'llm',
-    surfaces: ['chat', 'books'],
+    defaultCollapsed: true,
   },
   { href: '/space', label: 'Learning Space', icon: LayoutGrid, tooltipKey: 'Space tooltip' },
   {
