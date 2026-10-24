@@ -47,6 +47,30 @@ def test_course_registry_round_trip_and_atomic_persistence(tmp_path) -> None:
         service.get(security.id)
 
 
+def test_import_course_preserves_external_id_and_is_create_only(tmp_path) -> None:
+    service = CourseService(tmp_path / "courses")
+
+    imported = service.import_course(
+        course_id="course_legacy_123",
+        name="Imported Course",
+        default_capability="course_study",
+        created_at=123.0,
+    )
+    same = service.import_course(
+        course_id="course_legacy_123",
+        name="A name that must not overwrite the first",
+    )
+
+    assert imported.id == "course_legacy_123"
+    assert imported.created_at == 123.0
+    assert imported.default_capability == "course_study"
+    assert same.name == "Imported Course"
+    assert len(service.list_courses()) == 1
+
+    with pytest.raises(ValueError, match="Course id"):
+        service.import_course(course_id="../escape", name="Bad")
+
+
 def test_course_names_are_unique_case_insensitively(tmp_path) -> None:
     service = CourseService(tmp_path / "courses")
     course = service.create(name="Operating Systems")

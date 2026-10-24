@@ -93,6 +93,25 @@ async def list_resource_candidates() -> dict[str, object]:
     return {"candidates": await build_course_resource_candidates()}
 
 
+@router.post("/import-interactive")
+async def import_interactive_courses() -> dict[str, object]:
+    """Adopt every legacy interactive course into native containers."""
+    from deeptutor.course.native_bridge import sync_all_interactive_courses_to_native
+
+    return {"imports": sync_all_interactive_courses_to_native()}
+
+
+@router.post("/import-interactive/{course_id}")
+async def import_interactive_course(course_id: str) -> dict[str, object]:
+    """Adopt one legacy course after its guided build completes."""
+    from deeptutor.course.native_bridge import sync_interactive_course_to_native
+
+    try:
+        return {"import": sync_interactive_course_to_native(course_id)}
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
 @router.patch("/{course_id}")
 async def update_course(course_id: str, payload: UpdateCourseRequest) -> dict[str, object]:
     from deeptutor.services.courses import COURSE_STATUSES

@@ -5536,5 +5536,21 @@
   "Applies to Chat, Solve, Ask Questions, Guided Learning, Reading, Course Study and standard visualizations. Changes take effect on the next turn.": "Застосовується до чату, розв’язування, запитань, керованого навчання, читання, курсів і стандартних візуалізацій. Зміни діють із наступного ходу.",
   "Clear instructions": "Очистити інструкції",
   "{{used}} / {{limit}} characters": "{{used}} / {{limit}} символів",
-  "contextBudget.segment.workspace_instructions": "Інструкції робочого простору"
+  "contextBudget.segment.workspace_instructions": "Інструкції робочого простору",
+  "assignments": "завдання",
+  "Coursework": "Курсова робота",
+  "Deliverable": "Результат",
+  "Milestones": "Етапи",
+  "{{minutes}} min · {{status}}": "{{minutes}} хв · {{status}}",
+  "Open coursework board": "Відкрити дошку курсової роботи",
+  "Open the coursework board to generate its artifacts.": "Відкрийте дошку курсової роботи, щоб створити матеріали.",
+  "projects": "проєкти",
+  "Rubric": "Критерії оцінювання",
+  "Success criteria": "Критерії успіху",
+  "This class workspace will be generated when you reach it.": "Робочий простір цього заняття буде створено, коли ви до нього дійдете.",
+  "tutorials": "посібники",
+  "Tutorials, assignments, and projects generated for this course.": "Посібники, завдання та проєкти, створені для цього курсу.",
+  "{{tutorials}} tutorials · {{assignments}} assignments": "{{tutorials}} посібники · {{assignments}} завдання",
+  "workspaces ready": "робочі простори готові",
+  "Build with research and coursework": "Створити з дослідженням і курсовою роботою"
 }

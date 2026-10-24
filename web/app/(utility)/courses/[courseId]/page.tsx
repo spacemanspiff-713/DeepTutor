@@ -21,6 +21,7 @@ import CourseNextStep from "@/components/courses/CourseNextStep";
 import CourseProgress from "@/components/courses/CourseProgress";
 import CourseResources from "@/components/courses/CourseResources";
 import CourseSyllabus from "@/components/courses/CourseSyllabus";
+import CourseworkPanel from "@/components/courses/CourseworkPanel";
 import OrganizedSessionList from "@/components/courses/OrganizedSessionList";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import {
@@ -337,6 +338,10 @@ export default function CourseDetailPage() {
           onSave={saveSyllabus}
           onToggle={toggleUnit}
         />
+      </div>
+
+      <div className="mt-4">
+        <CourseworkPanel courseId={courseId} />
       </div>
 
       <div className={`mt-4 ${pageGridClass(2)}`}>

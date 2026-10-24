@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 from typing import Any
 
@@ -33,6 +34,8 @@ from .models import (
     Tutorial,
 )
 from .storage import CourseStorage, get_course_storage
+
+logger = logging.getLogger(__name__)
 
 
 class CourseEngine:
@@ -194,6 +197,16 @@ class CourseEngine:
                 course_id,
                 f"outline confirmed; {len(classes)} distinct class plans created; first class compiled",
             )
+            try:
+                from .native_bridge import sync_interactive_course_to_native
+
+                sync_interactive_course_to_native(course_id, engine=self)
+                self.storage.append_log(course_id, "native course container synchronized")
+            except Exception:
+                logger.exception(
+                    "Failed to synchronize interactive course %s to native Courses",
+                    course_id,
+                )
             return classes
 
     async def compile_class(self, course_id: str, class_id: str) -> CourseClass:
@@ -315,6 +328,16 @@ class CourseEngine:
         self.storage.save_class(item)
         if item.status == ClassStatus.COMPLETE:
             self._update_progress_after_completion(course_id, item.id)
+        if "status" in values:
+            try:
+                from .native_bridge import sync_interactive_class_status_to_native
+
+                sync_interactive_class_status_to_native(course_id, item)
+            except Exception:
+                logger.exception(
+                    "Failed to synchronize class %s status to native Courses",
+                    class_id,
+                )
         return self.storage.load_class(course_id, class_id) or item
 
     def delete_course(self, course_id: str) -> bool:

@@ -5520,5 +5520,21 @@
   "Applies to Chat, Solve, Ask Questions, Guided Learning, Reading, Course Study and standard visualizations. Changes take effect on the next turn.": "Gilt für Chat, Problemlösung, Rückfragen, geführtes Lernen, Lesen, Kurslernen und Standardvisualisierungen. Änderungen gelten ab der nächsten Runde.",
   "Clear instructions": "Anweisungen leeren",
   "{{used}} / {{limit}} characters": "{{used}} / {{limit}} Zeichen",
-  "contextBudget.segment.workspace_instructions": "Arbeitsbereichsanweisungen"
+  "contextBudget.segment.workspace_instructions": "Arbeitsbereichsanweisungen",
+  "assignments": "Aufgaben",
+  "Coursework": "Kursarbeiten",
+  "Deliverable": "Abgabe",
+  "Milestones": "Meilensteine",
+  "{{minutes}} min · {{status}}": "{{minutes}} Min. · {{status}}",
+  "Open coursework board": "Kursarbeitsübersicht öffnen",
+  "Open the coursework board to generate its artifacts.": "Öffne die Kursarbeitsübersicht, um die Lernmaterialien zu erstellen.",
+  "projects": "Projekte",
+  "Rubric": "Bewertungsraster",
+  "Success criteria": "Erfolgskriterien",
+  "This class workspace will be generated when you reach it.": "Der Arbeitsbereich dieser Lektion wird erstellt, sobald du sie erreichst.",
+  "tutorials": "Tutorials",
+  "Tutorials, assignments, and projects generated for this course.": "Für diesen Kurs erstellte Tutorials, Aufgaben und Projekte.",
+  "{{tutorials}} tutorials · {{assignments}} assignments": "{{tutorials}} Tutorials · {{assignments}} Aufgaben",
+  "workspaces ready": "Arbeitsbereiche bereit",
+  "Build with research and coursework": "Mit Recherche und Kursarbeiten erstellen"
 }

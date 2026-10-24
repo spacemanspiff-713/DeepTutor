@@ -5520,5 +5520,21 @@
   "Applies to Chat, Solve, Ask Questions, Guided Learning, Reading, Course Study and standard visualizations. Changes take effect on the next turn.": "适用于对话、解题、主动提问、引导学习、沉浸式阅读、课程学习和常规可视化。从下一轮开始生效。",
   "Clear instructions": "清空提示词",
   "{{used}} / {{limit}} characters": "{{used}} / {{limit}} 字符",
-  "contextBudget.segment.workspace_instructions": "工作区提示词"
+  "contextBudget.segment.workspace_instructions": "工作区提示词",
+  "assignments": "项作业",
+  "Coursework": "课程作业",
+  "Deliverable": "交付成果",
+  "Milestones": "里程碑",
+  "{{minutes}} min · {{status}}": "{{minutes}} 分钟 · {{status}}",
+  "Open coursework board": "打开课程作业看板",
+  "Open the coursework board to generate its artifacts.": "打开课程作业看板以生成相关学习成果。",
+  "projects": "个项目",
+  "Rubric": "评分标准",
+  "Success criteria": "成功标准",
+  "This class workspace will be generated when you reach it.": "学习到本课时将生成对应的课堂工作区。",
+  "tutorials": "篇教程",
+  "Tutorials, assignments, and projects generated for this course.": "为本课程生成的教程、作业和项目。",
+  "{{tutorials}} tutorials · {{assignments}} assignments": "{{tutorials}} 篇教程 · {{assignments}} 项作业",
+  "workspaces ready": "个工作区已就绪",
+  "Build with research and coursework": "通过研究和课程作业进行构建"
 }

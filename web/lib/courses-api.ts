@@ -206,6 +206,29 @@ export async function createCourse(input: {
   return normalizeCourse(course);
 }
 
+export interface InteractiveCourseImport {
+  course_id: string;
+  created: boolean;
+  syllabus_units: number;
+  resources_added: number;
+  class_count: number;
+  compiled_class_count: number;
+}
+
+export async function importInteractiveCourse(
+  courseId: string,
+): Promise<InteractiveCourseImport> {
+  const response = await apiFetch(
+    apiUrl(`/api/courses/import-interactive/${encodeURIComponent(courseId)}`),
+    { method: "POST" },
+  );
+  const result = (
+    await expectJson<{ import: InteractiveCourseImport }>(response)
+  ).import;
+  invalidateClientCache("courses:");
+  return result;
+}
+
 export async function updateCourse(
   courseId: string,
   input: Partial<

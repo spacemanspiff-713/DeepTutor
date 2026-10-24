@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BookOpen } from "lucide-react";
+import Link from "next/link";
+import { BookOpen, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import Modal from "@/components/common/Modal";
 import { DEFAULT_COURSE_COLORS, type StudyCourse } from "@/lib/courses-api";
@@ -197,26 +198,39 @@ export default function CourseDialog({
           </p>
         ) : null}
 
-        <div className="flex justify-end gap-2 pt-1">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={busy}
-            className="rounded-lg px-3 py-2 text-[13px] text-[var(--muted-foreground)] hover:text-[var(--foreground)] disabled:opacity-50"
-          >
-            {t("Cancel")}
-          </button>
-          <button
-            type="submit"
-            disabled={!name.trim() || busy}
-            className="rounded-lg bg-[var(--foreground)] px-4 py-2 text-[13px] font-medium text-[var(--background)] transition-opacity hover:opacity-90 disabled:opacity-40"
-          >
-            {busy
-              ? t("Saving...")
-              : course
-                ? t("Save changes")
-                : t("Create course")}
-          </button>
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+          {!course ? (
+            <Link
+              href="/interactive-courses?new=1"
+              className="inline-flex items-center gap-1.5 rounded-lg px-2 py-2 text-[12px] text-[var(--muted-foreground)] transition-colors hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
+            >
+              <Sparkles size={13} />
+              {t("Build with research and coursework")}
+            </Link>
+          ) : (
+            <span />
+          )}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={busy}
+              className="rounded-lg px-3 py-2 text-[13px] text-[var(--muted-foreground)] hover:text-[var(--foreground)] disabled:opacity-50"
+            >
+              {t("Cancel")}
+            </button>
+            <button
+              type="submit"
+              disabled={!name.trim() || busy}
+              className="rounded-lg bg-[var(--foreground)] px-4 py-2 text-[13px] font-medium text-[var(--background)] transition-opacity hover:opacity-90 disabled:opacity-40"
+            >
+              {busy
+                ? t("Saving...")
+                : course
+                  ? t("Save changes")
+                  : t("Create course")}
+            </button>
+          </div>
         </div>
       </form>
     </Modal>

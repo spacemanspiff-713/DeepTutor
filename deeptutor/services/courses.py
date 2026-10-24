@@ -349,17 +349,63 @@ class CourseService:
         default_capability: str = "",
         default_persona: str = "",
     ) -> StudyCourse:
+        return self.import_course(
+            course_id=f"course_{uuid.uuid4().hex[:12]}",
+            name=name,
+            description=description,
+            color=color,
+            instructions=instructions,
+            default_capability=default_capability,
+            default_persona=default_persona,
+        )
+
+    def import_course(
+        self,
+        *,
+        course_id: str,
+        name: str,
+        description: str = "",
+        color: str = "",
+        instructions: str = "",
+        default_capability: str = "",
+        default_persona: str = "",
+        created_at: float | None = None,
+    ) -> StudyCourse:
+        """Create a course with a stable external id.
+
+        Normal course creation still generates its own id above. This narrow
+        entry point exists for importers whose related records already use a
+        durable course id: changing that id would force a mapping table into
+        every attached artifact. It is create-only and observes the same name,
+        length, and color rules as an ordinary course.
+        """
+        clean_id = str(course_id or "").strip()
+        if (
+            not clean_id
+            or len(clean_id) > 120
+            or any(
+                character not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-"
+                for character in clean_id
+            )
+        ):
+            raise ValueError(
+                "Course id may contain only letters, numbers, underscores, and hyphens."
+            )
         with self._lock:
             courses = self._load()
+            existing = next((course for course in courses if course.id == clean_id), None)
+            if existing is not None:
+                return existing
             clean_name = self._clean_name(name)
             self._assert_unique(courses, clean_name)
             now = time.time()
+            created = float(created_at or now)
             course = StudyCourse(
-                id=f"course_{uuid.uuid4().hex[:12]}",
+                id=clean_id,
                 name=clean_name,
                 description=self._clean_description(description),
                 color=self._clean_color(color, len(courses)),
-                created_at=now,
+                created_at=created,
                 updated_at=now,
                 instructions=_clip(instructions, INSTRUCTIONS_LIMIT),
                 default_capability=str(default_capability or "").strip()[:64],

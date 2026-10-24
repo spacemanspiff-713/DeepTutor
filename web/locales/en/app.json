@@ -5520,5 +5520,21 @@
   "Applies to Chat, Solve, Ask Questions, Guided Learning, Reading, Course Study and standard visualizations. Changes take effect on the next turn.": "Applies to Chat, Solve, Ask Questions, Guided Learning, Reading, Course Study and standard visualizations. Changes take effect on the next turn.",
   "Clear instructions": "Clear instructions",
   "{{used}} / {{limit}} characters": "{{used}} / {{limit}} characters",
-  "contextBudget.segment.workspace_instructions": "Workspace instructions"
+  "contextBudget.segment.workspace_instructions": "Workspace instructions",
+  "assignments": "assignments",
+  "Coursework": "Coursework",
+  "Deliverable": "Deliverable",
+  "Milestones": "Milestones",
+  "{{minutes}} min · {{status}}": "{{minutes}} min · {{status}}",
+  "Open coursework board": "Open coursework board",
+  "Open the coursework board to generate its artifacts.": "Open the coursework board to generate its artifacts.",
+  "projects": "projects",
+  "Rubric": "Rubric",
+  "Success criteria": "Success criteria",
+  "This class workspace will be generated when you reach it.": "This class workspace will be generated when you reach it.",
+  "tutorials": "tutorials",
+  "Tutorials, assignments, and projects generated for this course.": "Tutorials, assignments, and projects generated for this course.",
+  "{{tutorials}} tutorials · {{assignments}} assignments": "{{tutorials}} tutorials · {{assignments}} assignments",
+  "workspaces ready": "workspaces ready",
+  "Build with research and coursework": "Build with research and coursework"
 }

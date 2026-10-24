@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { BookOpen, CheckCircle2, ChevronLeft, ExternalLink, GraduationCap, LayoutGrid, Library, List, Loader2, Plus, Sparkles, Trash2, X } from "lucide-react";
 import { useAppShell } from "@/context/AppShellContext";
 import { courseApi } from "@/lib/course-api";
+import { importInteractiveCourse } from "@/lib/courses-api";
 import type { Assignment, ClassProject, Course, CourseClass, CourseDetail, CourseOutline, CourseProposal, ResourceLink, Tutorial } from "@/lib/course-types";
 import { bookApi } from "@/lib/book-api";
 import type { Book } from "@/lib/book-types";
@@ -21,6 +23,7 @@ const columns: Array<{key: CourseClass["status"]; label: string}> = [
 
 export default function CoursesPage() {
   const { language } = useAppShell();
+  const router = useRouter();
   const [courses, setCourses] = useState<Course[]>([]);
   const [detail, setDetail] = useState<CourseDetail | null>(null);
   const [view, setView] = useState<"library" | "creator" | "outline" | "board" | "class">("library");
@@ -52,6 +55,19 @@ export default function CoursesPage() {
     finally { setBusy(false); }
   }, []);
   useEffect(() => { void refresh().catch(() => setError("Could not load courses")).finally(() => setLoading(false)); }, [refresh]);
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    const requested = query.get("course");
+    if (requested) {
+      void openCourse(requested);
+    } else if (query.get("new") === "1") {
+      setDetail(null);
+      setProposal(null);
+      setOutline(null);
+      setResearchBrief("");
+      setView("creator");
+    }
+  }, [openCourse]);
 
   async function create(payload: {intent: string; resources: Array<Pick<ResourceLink, "url" | "title" | "note">>; knowledge_bases: string[]}) {
     setBusy(true); setError("");
@@ -70,7 +86,12 @@ export default function CoursesPage() {
   }
   async function createClasses() {
     if (!detail || !outline) return; setBusy(true); setError("");
-    try { await courseApi.confirmOutline(detail.course.id, outline); await openCourse(detail.course.id); await refresh(); }
+    try {
+      await courseApi.confirmOutline(detail.course.id, outline);
+      await importInteractiveCourse(detail.course.id);
+      await refresh();
+      router.push(`/courses/${encodeURIComponent(detail.course.id)}`);
+    }
     catch (err) { setError(err instanceof Error ? err.message : "Could not create classes"); }
     finally { setBusy(false); }
   }

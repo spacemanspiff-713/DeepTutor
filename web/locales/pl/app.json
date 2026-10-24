@@ -5536,5 +5536,21 @@
   "Applies to Chat, Solve, Ask Questions, Guided Learning, Reading, Course Study and standard visualizations. Changes take effect on the next turn.": "Dotyczy czatu, rozwiązywania, pytań, nauki z przewodnikiem, czytania, kursów i standardowych wizualizacji. Zmiany obowiązują od następnej tury.",
   "Clear instructions": "Wyczyść instrukcje",
   "{{used}} / {{limit}} characters": "{{used}} / {{limit}} znaków",
-  "contextBudget.segment.workspace_instructions": "Instrukcje obszaru roboczego"
+  "contextBudget.segment.workspace_instructions": "Instrukcje obszaru roboczego",
+  "assignments": "zadania",
+  "Coursework": "Prace kursowe",
+  "Deliverable": "Rezultat",
+  "Milestones": "Kamienie milowe",
+  "{{minutes}} min · {{status}}": "{{minutes}} min · {{status}}",
+  "Open coursework board": "Otwórz tablicę prac kursowych",
+  "Open the coursework board to generate its artifacts.": "Otwórz tablicę prac kursowych, aby wygenerować materiały.",
+  "projects": "projekty",
+  "Rubric": "Kryteria oceniania",
+  "Success criteria": "Kryteria sukcesu",
+  "This class workspace will be generated when you reach it.": "Obszar roboczy tej lekcji zostanie wygenerowany, gdy do niej dotrzesz.",
+  "tutorials": "samouczki",
+  "Tutorials, assignments, and projects generated for this course.": "Samouczki, zadania i projekty wygenerowane dla tego kursu.",
+  "{{tutorials}} tutorials · {{assignments}} assignments": "{{tutorials}} samouczki · {{assignments}} zadania",
+  "workspaces ready": "obszary robocze gotowe",
+  "Build with research and coursework": "Utwórz z badaniami i pracami kursowymi"
 }
