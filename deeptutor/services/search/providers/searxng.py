@@ -13,13 +13,20 @@ from ..types import Citation, SearchResult, WebSearchResponse
 from . import register_provider
 
 
+class SearxngResponseError(ValueError):
+    """The endpoint replied, but not with the SearXNG JSON search schema."""
+
+
 def _validate_base_url(base_url: str) -> str:
     normalized = base_url.strip().rstrip("/")
-    parsed = urlparse(normalized if "://" in normalized else f"http://{normalized}")
-    if parsed.scheme not in {"http", "https"}:
-        raise ValueError("SearXNG base_url must use http/https")
-    if not parsed.netloc:
-        raise ValueError("SearXNG base_url is missing host")
+    try:
+        parsed = urlparse(normalized if "://" in normalized else f"http://{normalized}")
+        valid = parsed.scheme in {"http", "https"} and parsed.hostname
+        parsed.port
+    except ValueError:
+        valid = False
+    if not valid:
+        raise requests.exceptions.InvalidURL("SearXNG base_url must be a valid HTTP/HTTPS address.")
     return parsed.geturl().rstrip("/")
 
 
@@ -27,10 +34,7 @@ def _validate_base_url(base_url: str) -> str:
 class SearxngProvider(BaseSearchProvider):
     """SearXNG provider."""
 
-    display_name = "SearXNG"
     description = "Self-hosted SearXNG endpoint"
-    supports_answer = False
-    requires_api_key = False
     API_KEY_ENV_VARS = ()
 
     def search(
@@ -53,9 +57,17 @@ class SearxngProvider(BaseSearchProvider):
             request_kwargs["proxies"] = {"http": self.proxy, "https": self.proxy}
         resp = requests.get(endpoint, timeout=timeout, **request_kwargs)
         if resp.status_code != 200:
-            raise Exception(f"SearXNG API error: {resp.status_code} - {resp.text}")
-        payload = resp.json()
-        rows = payload.get("results", [])
+            # Keep the status for diagnostics, without echoing upstream bodies or keys.
+            raise requests.HTTPError(
+                f"SearXNG API returned HTTP {resp.status_code}.", response=resp
+            )
+        try:
+            payload = resp.json()
+        except ValueError as exc:
+            raise SearxngResponseError("SearXNG search did not return valid JSON.") from exc
+        rows = payload.get("results") if isinstance(payload, dict) else None
+        if not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows):
+            raise SearxngResponseError("SearXNG JSON response is missing a valid results list.")
         citations: list[Citation] = []
         search_results: list[SearchResult] = []
         for idx, row in enumerate(rows[: max(1, min(int(max_results), 10))], 1):

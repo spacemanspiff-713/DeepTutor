@@ -69,7 +69,7 @@ deeptutor run <capability> <message> [options]
 
 | 选项 | 缩写 | 说明 |
 |------|------|------|
-| `--tool` | `-t` | 启用工具（可多次指定）：`rag`, `web_search`, `code_execution`, `reason`, `brainstorm`, `paper_search`, `geogebra_analysis`, `imagegen`, `videogen` |
+| `--tool` | `-t` | 启用工具（可多次指定）：`web_search`, `reason`, `brainstorm`, `paper_search`, `geogebra_analysis`, `imagegen`, `videogen`；RAG 通过 `--kb` 挂载 |
 | `--kb` | | 挂载知识库 |
 | `--language` | `-l` | 回复语言（默认 `en`） |
 | `--session` | | 继续已有会话 |
@@ -86,7 +86,7 @@ deeptutor run <capability> <message> [options]
 deeptutor run chat "什么是傅里叶变换？" -l zh
 
 # 深度解题
-deeptutor run deep_solve "证明 n^3-n 能被 6 整除" -t rag --kb math-textbook
+deeptutor run deep_solve "证明 n^3-n 能被 6 整除" --kb math-textbook
 
 # 简要回答
 deeptutor run deep_solve "求 sin(x) 的导数" --config detailed_answer=false
@@ -218,17 +218,63 @@ deeptutor plugin info <name>                     # 查看详情
 ### `config` — 配置
 
 ```bash
-deeptutor config show
+deeptutor config show [--home PATH]                # 查看配置（隐藏凭据）
+deeptutor config providers                         # JSON：支持的提供方和默认端点
+deeptutor config apply setup.json --check          # 无写入、无网络请求的预校验
+deeptutor config apply setup.json [--home PATH]    # 无交互应用配置
 ```
+
+让外部 Agent 配置 DeepTutor 时，先阅读根目录的 [SKILL.md](../SKILL.md)，再按
+[Agent Setup 指南](../docs-for-user/AGENT_SETUP.md) 完成安装、配置、启动和验证。
+`deeptutor init --non-interactive [--home PATH]` 只创建缺失的默认设置，不询问参数、
+不选择模型，也不会覆盖已有设置。CLI-only 可以同时加 `--cli`。
+
+`config apply` 接受 JSON 中的 `llm`、`embedding`、`search`、`system` 配置段；
+具体字段见指南。通过 `api_key_env` 引用进程环境中的凭据，不接受明文 `api_key`。
+它会更新并选中对应服务的 Agent Setup profile，保留其他 profile 和未提供的设置，
+重复应用不会创建重复 profile。校验和应用都输出 JSON，参数错误退出码为 2。
+所有步骤应使用同一个 `DEEPTUTOR_HOME`；根目录 `.env` 不会自动加载。
+
+```bash
+deeptutor doctor --format json                     # 本地就绪检查
+deeptutor doctor --online --format json            # 发送一次小型 LLM 请求验证连接
+```
+
+在线检查会产生提供方用量，只验证 LLM；需要 RAG 时还要验证 embedding 和小样本文档检索。
 
 ### `provider` — 提供方认证 / 校验
 
 ```bash
 deeptutor provider login openai-codex      # 执行 OpenAI Codex OAuth 登录
-deeptutor provider login github-copilot    # 校验现有 GitHub Copilot 认证是否可用
+deeptutor provider login github-copilot    # 通过 GitHub 设备授权登录 Copilot
+deeptutor provider login codebuddy         # 校验 CodeBuddy SDK 登录；未登录时打开登录入口
 ```
 
-`openai-codex` 会打开系统浏览器，使用 DeepTutor 自己的独立 OAuth 流程登录。它不需要 `OPENAI_API_KEY`，也不会读取或同步本机 `~/.codex`；凭据保存在 `<user-root>/private/openai-codex/`，与 Web 设置页共用。授权回调监听本机回环地址，因此须在运行后端的机器上完成登录。
+`openai-codex` 使用 DeepTutor 自己的独立 OAuth 流程登录。它不需要 `OPENAI_API_KEY`，也不会读取或同步本机 `~/.codex`；凭据保存在 `data/system/user-secrets/<owner>/private/openai-codex/`（沙箱访问不到的目录），与 Web 设置页共用。
+
+`github-copilot` 使用 GitHub Device Flow。命令会显示一次性验证码并打开 GitHub 授权页；登录成功后会保存 GitHub token，运行时再自动换取短期 Copilot API token。`deeptutor init` 也会在选择 GitHub Copilot 后直接进入同一登录流程。
+
+凭据仅保存在当前 DeepTutor home 的 `data/system/user-secrets/<owner-id>/private/github-copilot/credentials.v1.json`，不写入模型配置、不共享给其他用户，也不会自动读取 nanobot 等外部应用的登录文件。升级后请重新运行 `deeptutor provider login github-copilot`。CLI/本地管理员和其 Partner 使用管理员所属凭据；普通用户必须独立登录，Copilot 模型不能通过管理员授权借用。
+
+登录命令使用实时发现的可用模型验证推理访问；`init` 验证用户选中的模型，失败时中止而非显示验证成功或保存配置。GitHub 登录成功不等于 Copilot 模型可用，失败后登录凭据仍保留。运行时遵循 token 交换返回的 API 地址（包括刷新后的变化），并根据模型的 `supported_endpoints` 选择 Responses 或 Chat Completions；只支持其他协议的模型不在列表中。
+
+远程部署时，浏览器的 `localhost` 和服务器的 `localhost` 不是同一台机器，仅有普通反向代理无法把浏览器的 localhost callback 送到服务器，必须用 SSH 隧道建立 callback 桥。隧道通向已发布的 Web 端口；Next.js 只把精确的 callback 路径改写到 public callback broker，broker 校验 `state` 后才路由到原 OAuth operation。callback listener 仍位于后端 loopback，不发布 `1455`/`1457`，并支持默认 Docker bridge 网络。
+
+```bash
+ssh -N -L 1455:127.0.0.1:3782 <ssh-user>@<server-host>
+```
+
+若 DeepTutor 显示 fallback callback 端口 `1457`，则使用：
+
+```bash
+ssh -N -L 1457:127.0.0.1:3782 <ssh-user>@<server-host>
+```
+
+只运行与实际 callback 端口对应的其中一条命令，不能两条都运行。`3782` 只是示例 Web 端口：它是 DeepTutor 配置并作为 `callback_forward_port` 显示的 frontend/container 端口，不保证 SSH 主机的 `127.0.0.1` 正在监听同一端口。若 Docker/Podman 映射到不同宿主机端口，或反向代理监听不同端口，只替换 SSH 命令右侧的目标端口（上例中的 `3782`）为 SSH 主机 `127.0.0.1` 实际监听的 Web 端口；左侧 callback 端口仍保持 `1455` 或 `1457`。`<server-host>` 是该 loopback 监听端口所在的 SSH 主机；若浏览器域名指向反向代理或负载均衡器，请替换为正确的 SSH 前端主机。
+
+CLI 会先打印隧道命令，随后立即尝试打开浏览器。远程用户应先保持授权页打开但不要完成授权，在另一终端建立所显示的隧道，然后再继续授权。
+
+localhost 检测存在边界：若 Web 本身已通过 SSH 或 IDE localhost 转发访问，浏览器无法判断服务器是远程的。对于当前 Web operation，应保持其授权页未完成，从该 operation 的 authorize URL 中读取 `redirect_uri`，确认 callback 是 `1455` 还是 `1457`，再把该本地端口通过第二条隧道转到实际 Web 端口。另一种方法是取消该 Web operation，再通过 CLI 启动一个新 operation；CLI 输出只属于新 operation，不能用于当前 Web operation。
 
 Codex 令牌授权的是**你本人**的 ChatGPT 套餐，因此凭据只归当前登录用户，不会通过模型授权共享给部署内的其他用户——每位用户各自登录。登录成功后，模型列表来自该账号的动态目录；仅当此前尚未配置任何 LLM 时，Codex 才会被自动设为活动模型，否则不改动你已选的模型。目录刷新失败、上游 `429` 或其他错误都会如实报告，不会回退到付费 API Provider。这条 Codex backend 兼容路径目前属于实验性能力。
 
@@ -241,7 +287,7 @@ Codex 令牌授权的是**你本人**的 ChatGPT 套餐，因此凭据只归当�
 deeptutor kb create calculus --doc 微积分教材.pdf
 
 # 2. 用知识库解题
-deeptutor run deep_solve "求 ∫sin(x)cos(x)dx" -t rag --kb calculus -l zh
+deeptutor run deep_solve "求 ∫sin(x)cos(x)dx" --kb calculus -l zh
 
 # 3. 基于知识库出题
 deeptutor run deep_question "微积分" --kb calculus \

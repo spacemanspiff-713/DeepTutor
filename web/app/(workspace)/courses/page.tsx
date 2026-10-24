@@ -193,7 +193,11 @@ function TutorPanel({ course, item, onClose, onSession }: { course: Course; item
     const payload = {
       type: "start_turn", content, session_id: item.chat_session_id || undefined,
       capability: "mastery_path", knowledge_bases: course.knowledge_bases, language,
-      config: { mastery_path_id: course.id, course_context: JSON.stringify({ course: course.title, class_title: item.title, class_summary: item.summary, objectives: item.learning_objectives, tutorials: item.tutorials.map(({ title, status }) => ({ title, status })), assignments: item.assignments.map(({ title, prompt, deliverable, rubric, status, learner_submission }) => ({ title, prompt, deliverable, rubric, status, learner_submission })), project: item.project }) },
+      // Upstream 1.6.x: mastery_path_id is a top-level turn field (and is
+      // persisted as a session preference); capability config is strictly
+      // validated, so the old config-bagged shape is rejected.
+      mastery_path_id: course.id,
+      config: {},
     }; sendWithRetry(client, payload);
   };
   const submitReply = (payload: { text?: string; answers?: Array<{ questionId: string; text: string }> }) => {

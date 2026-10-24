@@ -22,9 +22,7 @@ from . import register_provider
 class PerplexityProvider(BaseSearchProvider):
     """Perplexity AI search provider"""
 
-    display_name = "Perplexity"
     description = "AI-powered search with answers"
-    supports_answer = True
     BASE_URL = "https://api.perplexity.ai"  # Used by the perplexity package internally
 
     def __init__(self, api_key: str | None = None, **kwargs: Any) -> None:
@@ -42,7 +40,11 @@ class PerplexityProvider(BaseSearchProvider):
                     "perplexityai module is not installed. To use Perplexity search, please install: "
                     "pip install perplexityai"
                 ) from e
-            self._client = Perplexity(api_key=self.api_key)
+            # Identify DeepTutor traffic to the Perplexity API for attribution.
+            self._client = Perplexity(
+                api_key=self.api_key,
+                default_headers={"X-Pplx-Integration": "deeptutor"},
+            )
         return self._client
 
     def search(
@@ -65,13 +67,19 @@ class PerplexityProvider(BaseSearchProvider):
             WebSearchResponse: Standardized search response.
         """
         self.logger.debug(f"Calling Perplexity API with model={model}")
-        completion = self.client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": query},
-            ],
-        )
+        from deeptutor.services.llm.metrics import CallMeasurement
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": query},
+        ]
+        meter = CallMeasurement(model=model, provider="perplexity", messages=messages)
+        try:
+            completion = self.client.chat.completions.create(model=model, messages=messages)
+        except BaseException:
+            meter.finish(status="failed")
+            raise
+        meter.finish(completion)
 
         if not completion.choices or len(completion.choices) == 0:
             raise ValueError("Perplexity API returned no choices")

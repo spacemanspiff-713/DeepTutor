@@ -10,6 +10,7 @@ any other surface, tagged with the originating partner.
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 import pytest
@@ -125,6 +126,36 @@ def test_non_admin_scope_sees_no_partners(tmp_path: Path, monkeypatch: pytest.Mo
     assert adapters.read_partner_entities() == []
 
 
+def test_non_admin_sees_only_assigned_private_partner_sessions(
+    partner_tree: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from deeptutor.multi_user.models import CurrentUser, UserScope
+    from deeptutor.multi_user.paths import user_context
+
+    pdir = partner_tree / "partners" / "bot1"
+    pdir.mkdir(parents=True)
+    _write_session(pdir / "sessions", "admin", [("user", "admin secret")])
+    _write_session(pdir / "users" / "u1" / "sessions", "mine", [("user", "my chat")])
+    _write_session(pdir / "users" / "u2" / "sessions", "theirs", [("user", "their chat")])
+
+    import deeptutor.multi_user.partner_access as partner_access
+
+    monkeypatch.setattr(
+        partner_access,
+        "load_grant",
+        lambda uid: {"partners": [{"partner_id": "bot1"}]} if uid == "u1" else {},
+    )
+    root = (partner_tree / "users" / "u1").resolve()
+    user = CurrentUser("u1", "alice", "user", UserScope("user", "u1", root))
+    with user_context(user):
+        entities = adapters.read_partner_entities()
+
+    assert [entity.id for entity in entities] == ["bot1:mine"]
+    assert "my chat" in entities[0].content
+    assert "admin secret" not in entities[0].content
+    assert "their chat" not in entities[0].content
+
+
 def test_fingerprint_changes_when_conversation_grows(partner_tree: Path) -> None:
     pdir = partner_tree / "partners" / "bot1"
     pdir.mkdir(parents=True)
@@ -139,3 +170,111 @@ def test_fingerprint_changes_when_conversation_grows(partner_tree: Path) -> None
     )
     fp2 = adapters.read_partner_entities()[0].fingerprint
     assert fp1 != fp2
+
+
+# ── Corrupt-file tolerance: skip, warn (with path), keep the rest ────
+
+
+class _SnapshotPathService(_FakePathService):
+    """Fake exposing the notebook / co-writer / book path methods."""
+
+    def get_notebook_dir(self) -> Path:
+        return self.workspace_root / "notebook"
+
+    def get_notebook_file(self, notebook_id: str) -> Path:
+        return self.get_notebook_dir() / f"{notebook_id}.json"
+
+    def get_notebook_index_file(self) -> Path:
+        return self.get_notebook_dir() / "notebooks_index.json"
+
+    def get_co_writer_docs_dir(self) -> Path:
+        return self.workspace_root / "co_writer" / "documents"
+
+    def get_book_dir(self) -> Path:
+        return self.workspace_root / "book"
+
+
+@pytest.fixture
+def snapshot_tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    monkeypatch.setattr(adapters, "get_path_service", lambda: _SnapshotPathService(tmp_path))
+    return tmp_path
+
+
+def _warn_records(caplog: pytest.LogCaptureFixture) -> list[str]:
+    return [
+        rec.getMessage()
+        for rec in caplog.records
+        if rec.levelno == logging.WARNING
+        and rec.name == "deeptutor.services.memory.snapshot.adapters"
+    ]
+
+
+def test_corrupt_notebook_file_skipped_with_warning(
+    snapshot_tree: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    index = snapshot_tree / "notebook" / "notebooks_index.json"
+    index.parent.mkdir(parents=True)
+    index.write_text(
+        json.dumps({"notebooks": [{"id": "bad", "name": "Bad"}, {"id": "ok", "name": "Ok"}]}),
+        encoding="utf-8",
+    )
+    corrupt = snapshot_tree / "notebook" / "bad.json"
+    corrupt.write_text("{ not json", encoding="utf-8")
+    good = snapshot_tree / "notebook" / "ok.json"
+    good.write_text(
+        json.dumps({"records": [{"id": "r1", "title": "T", "output": "O"}]}),
+        encoding="utf-8",
+    )
+
+    with caplog.at_level(logging.WARNING):
+        entities = adapters.read_notebook_entities()
+
+    assert [e.id for e in entities] == ["r1"]
+    warnings = _warn_records(caplog)
+    assert any(str(corrupt) in w for w in warnings)
+
+
+def test_corrupt_cowriter_manifest_skipped_with_warning(
+    snapshot_tree: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    docs = snapshot_tree / "co_writer" / "documents"
+    bad_dir = docs / "doc_bad"
+    bad_dir.mkdir(parents=True)
+    corrupt = bad_dir / "manifest.json"
+    corrupt.write_text("{ oops", encoding="utf-8")
+    good_dir = docs / "doc_ok"
+    good_dir.mkdir()
+    (good_dir / "manifest.json").write_text(
+        json.dumps({"id": "ok", "title": "Doc", "content": "C"}),
+        encoding="utf-8",
+    )
+
+    with caplog.at_level(logging.WARNING):
+        entities = adapters.read_cowriter_entities()
+
+    assert [e.id for e in entities] == ["ok"]
+    warnings = _warn_records(caplog)
+    assert any(str(corrupt) in w for w in warnings)
+
+
+def test_corrupt_book_manifest_skipped_with_warning(
+    snapshot_tree: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    books = snapshot_tree / "book"
+    bad_dir = books / "book_bad"
+    bad_dir.mkdir(parents=True)
+    corrupt = bad_dir / "manifest.json"
+    corrupt.write_text("[ broken", encoding="utf-8")
+    good_dir = books / "book_ok"
+    good_dir.mkdir()
+    (good_dir / "manifest.json").write_text(
+        json.dumps({"id": "ok", "title": "Book", "description": "D"}),
+        encoding="utf-8",
+    )
+
+    with caplog.at_level(logging.WARNING):
+        entities = adapters.read_book_entities()
+
+    assert [e.id for e in entities] == ["ok"]
+    warnings = _warn_records(caplog)
+    assert any(str(corrupt) in w for w in warnings)

@@ -25,3 +25,46 @@ export function nextOptimisticId(): number {
   lastOptimisticId = stamp < lastOptimisticId ? stamp : lastOptimisticId - 1;
   return lastOptimisticId;
 }
+
+interface IdentifiedMessage {
+  id?: number;
+  role: string;
+  failedSubmissionId?: string;
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Resolve a message to its persisted row before a server-side mutation.
+ * The refresh result is used directly because React state refs are only
+ * updated after the reducer commit and can still contain the optimistic id.
+ */
+export async function resolvePersistedMessage<T extends IdentifiedMessage>(
+  messages: readonly T[],
+  messageId: number,
+  expectedRole: string,
+  refreshMessages: () => Promise<readonly T[] | undefined>,
+): Promise<T | undefined> {
+  const index = messages.findIndex(
+    (message) => message.id === messageId && message.role === expectedRole,
+  );
+  if (index === -1) return undefined;
+
+  const original = messages[index];
+  if (typeof original.id === "number" && original.id >= 0) return original;
+
+  const submissionId = original.failedSubmissionId ?? original.metadata?.client_submission_id;
+  if (typeof submissionId !== "string" || !submissionId) return undefined;
+  const refreshed = await refreshMessages();
+  const candidates = refreshed?.filter((message) => message.role === expectedRole &&
+    (message.metadata?.client_submission_id ?? message.failedSubmissionId) === submissionId);
+  const candidate = candidates?.length === 1 ? candidates[0] : undefined;
+  if (
+    !candidate ||
+    candidate.role !== expectedRole ||
+    typeof candidate.id !== "number" ||
+    candidate.id < 0
+  ) {
+    return undefined;
+  }
+  return candidate;
+}
