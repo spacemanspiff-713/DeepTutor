@@ -665,10 +665,18 @@ app.include_router(
     tags=["learning-journal"],
     dependencies=_auth,
 )
-# Fork addition: custom interactive Courses workspace. Upstream's own
-# ``courses`` router is mounted separately at /api/courses above; this one
-# serves the fork's richer class/artifact model at its original path.
-app.include_router(course.router, prefix="/api/v1/course", tags=["course"], dependencies=_auth)
+# Fork addition: custom interactive Courses workspace. Upstream owns
+# /api/courses and /ws; this legacy surface is namespaced under
+# /api/interactive-courses and /ws/interactive-courses to satisfy the
+# canonical-route contract in tests/api/test_canonical_route_surface.py
+# (in particular, the retired /api/v1 prefix).
+app.include_router(
+    course.router,
+    prefix="/api/interactive-courses",
+    tags=["interactive-courses"],
+    dependencies=_auth,
+)
+app.include_router(course.ws_router, prefix="/ws", tags=["interactive-courses"])
 app.include_router(
     capabilities_settings.router,
     prefix="/api/capabilities",

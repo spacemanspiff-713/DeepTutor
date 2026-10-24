@@ -2,7 +2,7 @@ import { apiFetch, apiUrl, wsUrl } from "@/lib/api";
 import { runBookSocketOperation, type BookWsEvent } from "@/lib/book-ws-operation";
 import type { Course, CourseClass, CourseDetail, CourseOutline, CourseProposal, ResourceLink } from "@/lib/course-types";
 
-const BASE = "/api/v1/course";
+const BASE = "/api/interactive-courses";
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await apiFetch(apiUrl(`${BASE}${path}`), { headers: { "Content-Type": "application/json", ...(init?.headers || {}) }, ...init });
   if (!res.ok) {
@@ -19,7 +19,7 @@ export interface CreateCoursePayload {
   resource_links?: Array<Pick<ResourceLink, "url" | "title" | "note">>;
 }
 function socketOperation<T extends BookWsEvent>(message: BookWsEvent, resultType: string): Promise<T> {
-  return runBookSocketOperation<T>(() => new WebSocket(wsUrl(`${BASE}/ws`)), { message, resultType });
+  return runBookSocketOperation<T>(() => new WebSocket(wsUrl("/ws/interactive-courses")), { message, resultType });
 }
 
 export const courseApi = {

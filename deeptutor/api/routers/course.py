@@ -10,6 +10,10 @@ from pydantic import BaseModel, Field
 from deeptutor.course import CourseOutline, CourseProposal, get_course_engine
 
 router = APIRouter()
+# Upstream keeps websockets in one canonical /ws namespace and mounts them
+# from a separate router so they never inherit the HTTP auth dependency
+# (see tests/api/test_websocket_routing.py).
+ws_router = APIRouter()
 
 
 class CreateCourseRequest(BaseModel):
@@ -130,7 +134,7 @@ async def delete_course(course_id: str) -> dict[str, Any]:
     return {"deleted": True, "course_id": course_id}
 
 
-@router.websocket("/ws")
+@ws_router.websocket("/interactive-courses")
 async def course_websocket(ws: WebSocket) -> None:
     """Long-running course research/planning operations.
 

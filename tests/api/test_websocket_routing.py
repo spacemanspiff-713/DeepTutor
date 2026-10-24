@@ -16,6 +16,10 @@ def test_websocket_routes_share_one_canonical_namespace() -> None:
         "/ws/mastery-paths",
         "/ws/partners/{partner_id}",
         "/ws/partner-groups/{group_id}",
+        # Fork addition: the legacy interactive Courses workspace keeps its
+        # own long-running operation socket. Documented here rather than
+        # left out so this test stays meaningful for every other route.
+        "/ws/interactive-courses",
     }
     websocket_routes = {route.path: route for route in iter_effective_websocket_routes(app)}
 
